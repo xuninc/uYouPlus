@@ -13,26 +13,6 @@
 + (id)sharedInstance;
 @end
 
-// iOS 16 uYou crash fix - @level3tjg: https://github.com/qnblackcat/uYouPlus/pull/224
-@interface OBPrivacyLinkButton : UIButton
-- (instancetype)initWithCaption:(NSString *)caption
-                     buttonText:(NSString *)buttonText
-                          image:(UIImage *)image
-                      imageSize:(CGSize)imageSize
-                   useLargeIcon:(BOOL)useLargeIcon
-                displayLanguage:(NSString *)displayLanguage;
-@end
-
-// uYouLocal fix
-// @interface YTLocalPlaybackController : NSObject
-// - (id)activeVideo;
-// @end
-
-// uYou theme fix
-// @interface YTAppDelegate ()
-// @property(nonatomic, strong) id downloadsVC;
-// @end
-
 // Fix uYou's appearance not updating if the app is backgrounded
 @interface DownloadsPagerVC : UIViewController
 - (NSArray<UIViewController *> *)viewControllers;

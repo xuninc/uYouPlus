@@ -117,10 +117,9 @@ extern NSBundle *uYouPlusBundle();
     NSBundle *tweakBundle = uYouPlusBundle();
     Class YTSettingsSectionItemClass = %c(YTSettingsSectionItem);
     YTSettingsViewController *settingsViewController = [self valueForKey:@"_settingsViewControllerDelegate"];
+    if (!settingsViewController) return;
 
     # pragma mark - About
-    // SECTION_HEADER(LOC(@"ABOUT"));
-
     YTSettingsSectionItem *version = [%c(YTSettingsSectionItem)
         itemWithTitle:LOC(@"VERSION")
         titleDescription:nil
@@ -185,7 +184,12 @@ extern NSBundle *uYouPlusBundle();
                             if (components.count == 2) {
                                 NSString *key = components[0];
                                 NSString *value = components[1];
-                                [[NSUserDefaults standardUserDefaults] setObject:value forKey:key];
+                                // Properly handle boolean values
+                                if ([value isEqualToString:@"1"] || [value isEqualToString:@"0"]) {
+                                    [[NSUserDefaults standardUserDefaults] setBool:[value boolValue] forKey:key];
+                                } else {
+                                    [[NSUserDefaults standardUserDefaults] setObject:value forKey:key];
+                                }
                             }
                         }
                         [settingsViewController reloadData];

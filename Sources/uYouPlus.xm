@@ -157,13 +157,12 @@ YTMainAppControlsOverlayView *controlsOverlayView;
 
 %hook YTMainAppControlsOverlayView
 // Hide autoplay switch
-- (void)setAutoplaySwitchButtonRenderer:(id)arg1 { // hide Autoplay
-    if (IS_ENABLED(kHideAutoplaySwitch)) {}
-    else { return %orig; }
+- (void)setAutoplaySwitchButtonRenderer:(id)arg1 {
+    if (!IS_ENABLED(kHideAutoplaySwitch)) %orig;
 }
 // Hide CC button
 - (void)setClosedCaptionsOrSubtitlesButtonAvailable:(BOOL)arg1 {
-    return IS_ENABLED(kHideCC) ? %orig(NO) : %orig;
+    IS_ENABLED(kHideCC) ? %orig(NO) : %orig;
 }
 %end
 
@@ -180,8 +179,12 @@ YTMainAppControlsOverlayView *controlsOverlayView;
 // Hide channel watermark
 %hook YTAnnotationsViewController
 - (void)loadFeaturedChannelWatermark {
-    if (IS_ENABLED(kHideChannelWatermark)) {}
-    else { return %orig; }
+    if (!IS_ENABLED(kHideChannelWatermark)) %orig;
+}
+%end
+%hook YTMainAppVideoPlayerOverlayView
+- (BOOL)isWatermarkEnabled {
+    return IS_ENABLED(kHideChannelWatermark) ? NO : %orig;
 }
 %end
 %hook YTColdConfig
@@ -202,12 +205,15 @@ YTMainAppControlsOverlayView *controlsOverlayView;
 - (void)drawRectangleDecorationWithSideMasks:(CGRect)rect {
     if (IS_ENABLED(kRedProgressBar)) {
         YTIPlayerBarDecorationModel *model = [self valueForKey:@"_model"];
-        int overlayMode = model.playingState.overlayMode;
-        model.playingState.overlayMode = 1;
-        %orig;
-        model.playingState.overlayMode = overlayMode;
-    } else
-        %orig;
+        if (model) {
+            int overlayMode = model.playingState.overlayMode;
+            model.playingState.overlayMode = 1;
+            %orig;
+            model.playingState.overlayMode = overlayMode;
+            return;
+        }
+    }
+    %orig;
 }
 %end
 
@@ -226,6 +232,22 @@ YTMainAppControlsOverlayView *controlsOverlayView;
 - (void)showConfirmAlert { [self confirmAlertDidPressConfirm]; }
 %end
 
+// Suppress premium promo popups
+%hook YTPromoThrottleController
+- (BOOL)canShowThrottledPromo { return NO; }
+- (BOOL)canShowThrottledPromoWithFrequencyCap:(id)arg1 { return NO; }
+- (BOOL)canShowThrottledPromoWithFrequencyCaps:(id)arg1 { return NO; }
+%end
+
+%hook YTIShowFullscreenInterstitialCommand
+- (BOOL)shouldThrottleInterstitial { return YES; }
+%end
+
+// Suppress surveys
+%hook YTSurveyController
+- (void)showSurveyWithRenderer:(id)arg1 surveyParentResponder:(id)arg2 {}
+%end
+
 # pragma mark - Shorts controls overlay options
 
 // Hide "Buy Super Thanks" banner
@@ -241,8 +263,7 @@ YTMainAppControlsOverlayView *controlsOverlayView;
 // Hide subscriptions button
 %hook YTReelWatchRootViewController
 - (void)setPausedStateCarouselView {
-    if (IS_ENABLED(kHideSubscriptions)) {}
-    else { return %orig; }
+    if (!IS_ENABLED(kHideSubscriptions)) %orig;
 }
 %end
 
@@ -318,23 +339,23 @@ YTMainAppControlsOverlayView *controlsOverlayView;
 %group giPhoneLayout
 %hook UIDevice
 - (long long)userInterfaceIdiom {
-    return NO;
-} 
+    return UIUserInterfaceIdiomPhone; // 0
+}
 %end
 %hook UIStatusBarStyleAttributes
 - (long long)idiom {
-    return YES;
-} 
+    return UIUserInterfaceIdiomPhone; // 0
+}
 %end
 %hook UIKBTree
 - (long long)nativeIdiom {
-    return YES;
-} 
+    return UIUserInterfaceIdiomPhone; // 0
+}
 %end
 %hook UIKBRenderer
 - (long long)assetIdiom {
-    return YES;
-} 
+    return UIUserInterfaceIdiomPhone; // 0
+}
 %end
 %end
 
@@ -358,23 +379,25 @@ YTMainAppControlsOverlayView *controlsOverlayView;
 }
 %end
 
-// Hide YouTube annoying banner in Home page? - @MiRO92 - YTNoShorts: https://github.com/MiRO92/YTNoShorts
+// Hide YouTube annoying banner in Home page - @MiRO92 - YTNoShorts: https://github.com/MiRO92/YTNoShorts
 %hook YTAsyncCollectionView
 - (id)cellForItemAtIndexPath:(NSIndexPath *)indexPath {
     UICollectionViewCell *cell = %orig;
     if ([cell isKindOfClass:NSClassFromString(@"_ASCollectionViewCell")]) {
-        _ASCollectionViewCell *cell = %orig;
-        if ([cell respondsToSelector:@selector(node)]) {
-            if ([[[cell node] accessibilityIdentifier] isEqualToString:@"statement_banner.view"]) { [self removeShortsAndFeaturesAdsAtIndexPath:indexPath]; }
-            if ([[[cell node] accessibilityIdentifier] isEqualToString:@"compact.view"]) { [self removeShortsAndFeaturesAdsAtIndexPath:indexPath]; }
-            // if ([[[cell node] accessibilityIdentifier] isEqualToString:@"id.ui.video_metadata_carousel"]) { [self removeShortsAndFeaturesAdsAtIndexPath:indexPath]; }
+        _ASCollectionViewCell *asCell = (_ASCollectionViewCell *)cell;
+        if ([asCell respondsToSelector:@selector(node)]) {
+            NSString *identifier = [[asCell node] accessibilityIdentifier];
+            if ([identifier isEqualToString:@"statement_banner.view"] ||
+                [identifier isEqualToString:@"compact.view"]) {
+                [self removeShortsAndFeaturesAdsAtIndexPath:indexPath];
+            }
         }
     }
-    return %orig;
+    return cell;
 }
 %new
 - (void)removeShortsAndFeaturesAdsAtIndexPath:(NSIndexPath *)indexPath {
-    [self deleteItemsAtIndexPaths:[NSArray arrayWithObject:indexPath]];
+    [self deleteItemsAtIndexPaths:@[indexPath]];
 }
 %end
 
@@ -405,22 +428,32 @@ YTMainAppControlsOverlayView *controlsOverlayView;
 }
 %end
 
+// Ad-blocking hooks
+%hook YTAdsInnerTubeContextDecorator
+- (void)decorateContext:(id)context {}
+%end
+
+%hook YTAccountScopedAdsInnerTubeContextDecorator
+- (void)decorateContext:(id)context {}
+%end
+
 // A/B flags
-%hook YTColdConfig 
+%hook YTColdConfig
 // YouRememberCaption: https://poomsmart.github.io/repo/depictions/youremembercaption.html
 - (BOOL)respectDeviceCaptionSetting { return NO; }
 // Swipe right to dismiss the right panel in fullscreen mode
 - (BOOL)isLandscapeEngagementPanelSwipeRightToDismissEnabled { return YES; }
 // Don't use new YT settings layout (Cairo Settings)
 - (BOOL)mainAppCoreClientEnableCairoSettings { return NO; }
+// Use system theme setting
+- (BOOL)shouldUseAppThemeSetting { return YES; }
+// Enable swipe to remove in playlist
+- (BOOL)enableSwipeToRemoveInPlaylistWatchEp { return YES; }
 %end
 
 # pragma mark - Constructor
 
 %ctor {
-    // Load uYou first so its functions are available for hooks.
-    // dlopen([[NSString stringWithFormat:@"%@/Frameworks/uYou.dylib", [[NSBundle mainBundle] bundlePath]] UTF8String], RTLD_LAZY);
-
     %init;
     if (IS_ENABLED(kDisableHints)) {
         %init(gDisableHints);
