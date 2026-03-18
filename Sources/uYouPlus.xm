@@ -1,4 +1,5 @@
 #import "uYouPlus.h"
+#import "CsTweaks.h"
 
 // Tweak's bundle for Localizations support - @PoomSmart - https://github.com/PoomSmart/YouPiP/commit/aea2473f64c75d73cab713e1e2d5d0a77675024f
 NSBundle *uYouPlusBundle() {
@@ -100,6 +101,16 @@ static BOOL findCell(ASNodeController *nodeController, NSArray <NSString *> *ide
         if (IS_ENABLED(kHideDownloadButton) && findCell(nodeController, @[@"id.ui.add_to.offline.button"])) {
             return CGSizeZero;
         }
+
+        // C's Tweaks - Hide Share button
+        if (IS_ENABLED(kCsHideShareButton) && findCell(nodeController, @[@"id.video.share.button", @"share_button.eml"])) {
+            return CGSizeZero;
+        }
+
+        // C's Tweaks - Hide Thanks button
+        if (IS_ENABLED(kCsHideThanksButton) && findCell(nodeController, @[@"id.video.super_thanks.button", @"super_thanks_button.eml", @"buy_flow_button.eml"])) {
+            return CGSizeZero;
+        }
     }
     return %orig;
 }
@@ -123,6 +134,38 @@ YTMainAppControlsOverlayView *controlsOverlayView;
 %end
 %hook YTElementsDefaultSheetController
 + (void)showSheetController:(id)arg1 showCommand:(id)arg2 commandContext:(id)arg3 handler:(id)arg4 {
+    // C's Tweaks - Enhanced Downloads (takes priority over uYou replacement)
+    if (IS_ENABLED(kCsEnhancedDownloads) && [arg2 isKindOfClass:%c(ELMPBShowActionSheetCommand)]) {
+        ELMPBShowActionSheetCommand *csShowCommand = (ELMPBShowActionSheetCommand *)arg2;
+        NSArray *csListOptions = [csShowCommand listOptionArray];
+        for (ELMPBElement *element in csListOptions) {
+            ELMPBProperties *properties = [element properties];
+            ELMPBIdentifierProperties *identifierProperties = [properties firstSubmessage];
+            NSString *identifier = nil;
+            if ([identifierProperties respondsToSelector:@selector(identifier)])
+                identifier = [identifierProperties identifier];
+            else
+                identifier = [identifierProperties description];
+            if (identifier && [identifier containsString:@"offline"]) {
+                @try {
+                    UIViewController *topVC = [UIApplication sharedApplication].keyWindow.rootViewController;
+                    while (topVC.presentedViewController) topVC = topVC.presentedViewController;
+                    // Try to extract video ID - it's typically in the command context
+                    NSString *videoID = nil;
+                    if ([arg3 respondsToSelector:@selector(videoID)])
+                        videoID = [arg3 performSelector:@selector(videoID)];
+                    if (!videoID && [arg3 respondsToSelector:@selector(videoId)])
+                        videoID = [arg3 performSelector:@selector(videoId)];
+                    if (videoID) {
+                        [[CsDownloadManager sharedManager] showDownloadOptionsForVideoID:videoID fromViewController:topVC];
+                        return;
+                    }
+                } @catch (NSException *e) {
+                    // Fall through to uYou or original
+                }
+            }
+        }
+    }
     if (IS_ENABLED(kReplaceYTDownloadWithuYou) && [arg2 isKindOfClass:%c(ELMPBShowActionSheetCommand)]) {
         ELMPBShowActionSheetCommand *showCommand = (ELMPBShowActionSheetCommand *)arg2;
         NSArray *listOptions = [showCommand listOptionArray];
@@ -277,6 +320,16 @@ YTMainAppControlsOverlayView *controlsOverlayView;
         self.sponsorBlockButton.hidden = YES;
         self.sponsorBlockButton.frame = CGRectZero;
     }
+    // C's Tweaks - Hide notification button in nav bar
+    if (IS_ENABLED(kCsHideNotificationButton)) {
+        @try {
+            UIView *notificationButton = [self valueForKey:@"_notificationButton"];
+            if (notificationButton) {
+                notificationButton.hidden = YES;
+                notificationButton.frame = CGRectZero;
+            }
+        } @catch (NSException *e) {}
+    }
 }
 %end
 
@@ -391,6 +444,14 @@ YTMainAppControlsOverlayView *controlsOverlayView;
                 [identifier isEqualToString:@"compact.view"]) {
                 [self removeShortsAndFeaturesAdsAtIndexPath:indexPath];
             }
+            // C's Tweaks - Hide comments section
+            if (IS_ENABLED(kCsHideComments) &&
+                ([identifier containsString:@"comments_entry_point"] ||
+                 [identifier containsString:@"comment_thread"] ||
+                 [identifier containsString:@"comments-entry-point"])) {
+                cell.hidden = YES;
+                cell.frame = CGRectZero;
+            }
         }
     }
     return cell;
@@ -439,6 +500,29 @@ YTMainAppControlsOverlayView *controlsOverlayView;
 
 // A/B flags
 %hook YTColdConfig
+// C's Tweaks - Auto-skip "Are you still watching?"
+- (BOOL)isIdlePlaybackDialogEnabled {
+    if (IS_ENABLED(kCsAutoSkipStillWatching)) return NO;
+    return %orig;
+}
+// C's Tweaks - Disable long-press playback speed
+- (BOOL)speedMasterArm2Enabled {
+    if (IS_ENABLED(kCsDisableLongPressSpeed)) return NO;
+    return %orig;
+}
+- (BOOL)speedMasterArm2SpeedUpWithLongPress {
+    if (IS_ENABLED(kCsDisableLongPressSpeed)) return NO;
+    return %orig;
+}
+// C's Tweaks - Disable ambient mode (color glow behind video in dark mode)
+- (BOOL)enableCinematicContainerOnClient {
+    if (IS_ENABLED(kCsDisableAmbientMode)) return NO;
+    return %orig;
+}
+- (BOOL)iosCinematicContainerClientImprovement {
+    if (IS_ENABLED(kCsDisableAmbientMode)) return NO;
+    return %orig;
+}
 // YouRememberCaption: https://poomsmart.github.io/repo/depictions/youremembercaption.html
 - (BOOL)respectDeviceCaptionSetting { return NO; }
 // Swipe right to dismiss the right panel in fullscreen mode

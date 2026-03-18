@@ -156,3 +156,42 @@
 
 "GOOGLE_SIGNIN_FIX" = "Google sign-in fix";
 "GOOGLE_SIGNIN_FIX_DESC" = "";
+
+// C's Tweaks
+"CS_TWEAKS" = "🤖 C's Tweaks";
+
+"CS_AUTO_SKIP_STILL_WATCHING" = "Auto-skip \"Still watching?\"";
+"CS_AUTO_SKIP_STILL_WATCHING_DESC" = "Automatically dismisses the \"Are you still watching?\" idle playback popup";
+
+"CS_HIDE_COMMENTS" = "Hide comments section";
+"CS_HIDE_COMMENTS_DESC" = "Completely hides the comments section under videos";
+
+"CS_HIDE_SHARE_BUTTON" = "Hide Share button";
+"CS_HIDE_SHARE_BUTTON_DESC" = "Hides the Share button under videos";
+
+"CS_HIDE_THANKS_BUTTON" = "Hide Thanks button";
+"CS_HIDE_THANKS_BUTTON_DESC" = "Hides the Thanks/Super Thanks tipping button under videos";
+
+"CS_DISABLE_LONG_PRESS_SPEED" = "Disable long-press speed";
+"CS_DISABLE_LONG_PRESS_SPEED_DESC" = "Prevents accidental 2x playback speed when long-pressing the video";
+
+"CS_SHOW_TIME_REMAINING" = "Show time remaining";
+"CS_SHOW_TIME_REMAINING_DESC" = "Shows countdown of remaining time instead of total duration in the player bar";
+
+"CS_ENHANCED_DOWNLOADS" = "C's Downloads";
+"CS_ENHANCED_DOWNLOADS_DESC" = "Replaces the download button with a quality picker that saves directly to Photos & Files";
+
+"CS_DISABLE_AMBIENT_MODE" = "Disable ambient mode";
+"CS_DISABLE_AMBIENT_MODE_DESC" = "Disables the color glow effect behind videos in dark mode (cinematic lighting)";
+
+"CS_HIDE_NOTIFICATION_BUTTON" = "Hide notification bell";
+"CS_HIDE_NOTIFICATION_BUTTON_DESC" = "Hides the notification bell button in the navigation bar";
+
+"CS_CLEAN_SHARE_LINKS" = "Clean share links";
+"CS_CLEAN_SHARE_LINKS_DESC" = "Strips tracking parameters (si, feature, etc.) from YouTube URLs when copying/sharing";
+
+"CS_FORCE_ORIGINAL_AUDIO" = "Force original audio";
+"CS_FORCE_ORIGINAL_AUDIO_DESC" = "Prevents YouTube from auto-selecting dubbed audio tracks based on your region";
+
+"CS_SWIPE_BRIGHTNESS_VOLUME" = "Swipe brightness & volume";
+"CS_SWIPE_BRIGHTNESS_VOLUME_DESC" = "Swipe up/down on left side for brightness, right side for volume (like Morphe/MX Player)";
