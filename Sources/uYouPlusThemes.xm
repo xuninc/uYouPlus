@@ -77,12 +77,19 @@ UIColor* raisedColor = [UIColor colorWithRed:0.035 green:0.035 blue:0.035 alpha:
 - (void)_layoutSystemBackgroundView {
     %orig;
     UIView *systemBackgroundView = [self valueForKey:@"_systemBackgroundView"];
-    NSString *backgroundViewKey = class_getInstanceVariable(systemBackgroundView.class, "_colorView") ? @"_colorView" : @"_backgroundView";
-    ((UIView *)[systemBackgroundView valueForKey:backgroundViewKey]).backgroundColor = [UIColor blackColor];
+    if (systemBackgroundView) {
+        NSString *backgroundViewKey = class_getInstanceVariable(systemBackgroundView.class, "_colorView") ? @"_colorView" : @"_backgroundView";
+        UIView *bgView = [systemBackgroundView valueForKey:backgroundViewKey];
+        if (bgView) bgView.backgroundColor = [UIColor blackColor];
+    }
 }
 - (void)_layoutSystemBackgroundView:(BOOL)arg1 {
     %orig;
-    ((UIView *)[[self valueForKey:@"_systemBackgroundView"] valueForKey:@"_colorView"]).backgroundColor = [UIColor blackColor];
+    UIView *systemBackgroundView = [self valueForKey:@"_systemBackgroundView"];
+    if (systemBackgroundView) {
+        UIView *colorView = [systemBackgroundView valueForKey:@"_colorView"];
+        if (colorView) colorView.backgroundColor = [UIColor blackColor];
+    }
 }
 %end
 
@@ -126,7 +133,7 @@ UIColor* raisedColor = [UIColor colorWithRed:0.035 green:0.035 blue:0.035 alpha:
 // Download sort
 %hook GOODialogView
 - (void)setBackgroundColor:(UIColor *)color {
-    return IS_DARK_APPEARANCE_ENABLED ? %orig([UIColor blackColor]) : %orig;
+    IS_DARK_APPEARANCE_ENABLED ? %orig([UIColor blackColor]) : %orig;
 }
 %end
 
@@ -144,19 +151,19 @@ UIColor* raisedColor = [UIColor colorWithRed:0.035 green:0.035 blue:0.035 alpha:
 // iSponsorBlock
 %hook SponsorBlockSettingsController
 - (void)viewDidLoad {
+    %orig;
     if (self.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark) {
-        %orig;
         self.tableView.backgroundColor = [UIColor blackColor];
-    } else { return %orig; }
+    }
 }
 %end
 
 %hook SponsorBlockViewController
 - (void)viewDidLoad {
+    %orig;
     if (self.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark) {
-        %orig;
         self.view.backgroundColor = [UIColor blackColor];
-    } else { return %orig; }
+    }
 }
 %end
 
@@ -209,13 +216,13 @@ UIColor* raisedColor = [UIColor colorWithRed:0.035 green:0.035 blue:0.035 alpha:
 // Open link with...
 %hook ASWAppSwitchingSheetHeaderView
 - (void)setBackgroundColor:(UIColor *)color {
-    return IS_DARK_APPEARANCE_ENABLED ? %orig(raisedColor) : %orig;
+    IS_DARK_APPEARANCE_ENABLED ? %orig(raisedColor) : %orig;
 }
 %end
 
 %hook ASWAppSwitchingSheetFooterView
 - (void)setBackgroundColor:(UIColor *)color {
-    return IS_DARK_APPEARANCE_ENABLED ? %orig(raisedColor) : %orig;
+    IS_DARK_APPEARANCE_ENABLED ? %orig(raisedColor) : %orig;
 }
 %end
 

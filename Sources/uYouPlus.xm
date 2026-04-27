@@ -1,4 +1,5 @@
 #import "uYouPlus.h"
+#import "CsTweaks.h"
 
 // Tweak's bundle for Localizations support - @PoomSmart - https://github.com/PoomSmart/YouPiP/commit/aea2473f64c75d73cab713e1e2d5d0a77675024f
 NSBundle *uYouPlusBundle() {
@@ -100,6 +101,16 @@ static BOOL findCell(ASNodeController *nodeController, NSArray <NSString *> *ide
         if (IS_ENABLED(kHideDownloadButton) && findCell(nodeController, @[@"id.ui.add_to.offline.button"])) {
             return CGSizeZero;
         }
+
+        // C's Tweaks - Hide Share button
+        if (IS_ENABLED(kCsHideShareButton) && findCell(nodeController, @[@"id.video.share.button", @"share_button.eml"])) {
+            return CGSizeZero;
+        }
+
+        // C's Tweaks - Hide Thanks button
+        if (IS_ENABLED(kCsHideThanksButton) && findCell(nodeController, @[@"id.video.super_thanks.button", @"super_thanks_button.eml", @"buy_flow_button.eml"])) {
+            return CGSizeZero;
+        }
     }
     return %orig;
 }
@@ -123,6 +134,38 @@ YTMainAppControlsOverlayView *controlsOverlayView;
 %end
 %hook YTElementsDefaultSheetController
 + (void)showSheetController:(id)arg1 showCommand:(id)arg2 commandContext:(id)arg3 handler:(id)arg4 {
+    // C's Tweaks - Enhanced Downloads (takes priority over uYou replacement)
+    if (IS_ENABLED(kCsEnhancedDownloads) && [arg2 isKindOfClass:%c(ELMPBShowActionSheetCommand)]) {
+        ELMPBShowActionSheetCommand *csShowCommand = (ELMPBShowActionSheetCommand *)arg2;
+        NSArray *csListOptions = [csShowCommand listOptionArray];
+        for (ELMPBElement *element in csListOptions) {
+            ELMPBProperties *properties = [element properties];
+            ELMPBIdentifierProperties *identifierProperties = [properties firstSubmessage];
+            NSString *identifier = nil;
+            if ([identifierProperties respondsToSelector:@selector(identifier)])
+                identifier = [identifierProperties identifier];
+            else
+                identifier = [identifierProperties description];
+            if (identifier && [identifier containsString:@"offline"]) {
+                @try {
+                    UIViewController *topVC = [UIApplication sharedApplication].keyWindow.rootViewController;
+                    while (topVC.presentedViewController) topVC = topVC.presentedViewController;
+                    // Try to extract video ID - it's typically in the command context
+                    NSString *videoID = nil;
+                    if ([arg3 respondsToSelector:@selector(videoID)])
+                        videoID = [arg3 performSelector:@selector(videoID)];
+                    if (!videoID && [arg3 respondsToSelector:@selector(videoId)])
+                        videoID = [arg3 performSelector:@selector(videoId)];
+                    if (videoID) {
+                        [[CsDownloadManager sharedManager] showDownloadOptionsForVideoID:videoID fromViewController:topVC];
+                        return;
+                    }
+                } @catch (NSException *e) {
+                    // Fall through to uYou or original
+                }
+            }
+        }
+    }
     if (IS_ENABLED(kReplaceYTDownloadWithuYou) && [arg2 isKindOfClass:%c(ELMPBShowActionSheetCommand)]) {
         ELMPBShowActionSheetCommand *showCommand = (ELMPBShowActionSheetCommand *)arg2;
         NSArray *listOptions = [showCommand listOptionArray];
@@ -157,13 +200,12 @@ YTMainAppControlsOverlayView *controlsOverlayView;
 
 %hook YTMainAppControlsOverlayView
 // Hide autoplay switch
-- (void)setAutoplaySwitchButtonRenderer:(id)arg1 { // hide Autoplay
-    if (IS_ENABLED(kHideAutoplaySwitch)) {}
-    else { return %orig; }
+- (void)setAutoplaySwitchButtonRenderer:(id)arg1 {
+    if (!IS_ENABLED(kHideAutoplaySwitch)) %orig;
 }
 // Hide CC button
 - (void)setClosedCaptionsOrSubtitlesButtonAvailable:(BOOL)arg1 {
-    return IS_ENABLED(kHideCC) ? %orig(NO) : %orig;
+    IS_ENABLED(kHideCC) ? %orig(NO) : %orig;
 }
 %end
 
@@ -180,8 +222,12 @@ YTMainAppControlsOverlayView *controlsOverlayView;
 // Hide channel watermark
 %hook YTAnnotationsViewController
 - (void)loadFeaturedChannelWatermark {
-    if (IS_ENABLED(kHideChannelWatermark)) {}
-    else { return %orig; }
+    if (!IS_ENABLED(kHideChannelWatermark)) %orig;
+}
+%end
+%hook YTMainAppVideoPlayerOverlayView
+- (BOOL)isWatermarkEnabled {
+    return IS_ENABLED(kHideChannelWatermark) ? NO : %orig;
 }
 %end
 %hook YTColdConfig
@@ -202,12 +248,15 @@ YTMainAppControlsOverlayView *controlsOverlayView;
 - (void)drawRectangleDecorationWithSideMasks:(CGRect)rect {
     if (IS_ENABLED(kRedProgressBar)) {
         YTIPlayerBarDecorationModel *model = [self valueForKey:@"_model"];
-        int overlayMode = model.playingState.overlayMode;
-        model.playingState.overlayMode = 1;
-        %orig;
-        model.playingState.overlayMode = overlayMode;
-    } else
-        %orig;
+        if (model) {
+            int overlayMode = model.playingState.overlayMode;
+            model.playingState.overlayMode = 1;
+            %orig;
+            model.playingState.overlayMode = overlayMode;
+            return;
+        }
+    }
+    %orig;
 }
 %end
 
@@ -226,6 +275,22 @@ YTMainAppControlsOverlayView *controlsOverlayView;
 - (void)showConfirmAlert { [self confirmAlertDidPressConfirm]; }
 %end
 
+// Suppress premium promo popups
+%hook YTPromoThrottleController
+- (BOOL)canShowThrottledPromo { return NO; }
+- (BOOL)canShowThrottledPromoWithFrequencyCap:(id)arg1 { return NO; }
+- (BOOL)canShowThrottledPromoWithFrequencyCaps:(id)arg1 { return NO; }
+%end
+
+%hook YTIShowFullscreenInterstitialCommand
+- (BOOL)shouldThrottleInterstitial { return YES; }
+%end
+
+// Suppress surveys
+%hook YTSurveyController
+- (void)showSurveyWithRenderer:(id)arg1 surveyParentResponder:(id)arg2 {}
+%end
+
 # pragma mark - Shorts controls overlay options
 
 // Hide "Buy Super Thanks" banner
@@ -241,8 +306,7 @@ YTMainAppControlsOverlayView *controlsOverlayView;
 // Hide subscriptions button
 %hook YTReelWatchRootViewController
 - (void)setPausedStateCarouselView {
-    if (IS_ENABLED(kHideSubscriptions)) {}
-    else { return %orig; }
+    if (!IS_ENABLED(kHideSubscriptions)) %orig;
 }
 %end
 
@@ -255,6 +319,16 @@ YTMainAppControlsOverlayView *controlsOverlayView;
     if (IS_ENABLED(kHideiSponsorBlockButton)) {
         self.sponsorBlockButton.hidden = YES;
         self.sponsorBlockButton.frame = CGRectZero;
+    }
+    // C's Tweaks - Hide notification button in nav bar
+    if (IS_ENABLED(kCsHideNotificationButton)) {
+        @try {
+            UIView *notificationButton = [self valueForKey:@"_notificationButton"];
+            if (notificationButton) {
+                notificationButton.hidden = YES;
+                notificationButton.frame = CGRectZero;
+            }
+        } @catch (NSException *e) {}
     }
 }
 %end
@@ -318,23 +392,23 @@ YTMainAppControlsOverlayView *controlsOverlayView;
 %group giPhoneLayout
 %hook UIDevice
 - (long long)userInterfaceIdiom {
-    return NO;
-} 
+    return UIUserInterfaceIdiomPhone; // 0
+}
 %end
 %hook UIStatusBarStyleAttributes
 - (long long)idiom {
-    return YES;
-} 
+    return UIUserInterfaceIdiomPhone; // 0
+}
 %end
 %hook UIKBTree
 - (long long)nativeIdiom {
-    return YES;
-} 
+    return UIUserInterfaceIdiomPhone; // 0
+}
 %end
 %hook UIKBRenderer
 - (long long)assetIdiom {
-    return YES;
-} 
+    return UIUserInterfaceIdiomPhone; // 0
+}
 %end
 %end
 
@@ -358,23 +432,33 @@ YTMainAppControlsOverlayView *controlsOverlayView;
 }
 %end
 
-// Hide YouTube annoying banner in Home page? - @MiRO92 - YTNoShorts: https://github.com/MiRO92/YTNoShorts
+// Hide YouTube annoying banner in Home page - @MiRO92 - YTNoShorts: https://github.com/MiRO92/YTNoShorts
 %hook YTAsyncCollectionView
 - (id)cellForItemAtIndexPath:(NSIndexPath *)indexPath {
     UICollectionViewCell *cell = %orig;
     if ([cell isKindOfClass:NSClassFromString(@"_ASCollectionViewCell")]) {
-        _ASCollectionViewCell *cell = %orig;
-        if ([cell respondsToSelector:@selector(node)]) {
-            if ([[[cell node] accessibilityIdentifier] isEqualToString:@"statement_banner.view"]) { [self removeShortsAndFeaturesAdsAtIndexPath:indexPath]; }
-            if ([[[cell node] accessibilityIdentifier] isEqualToString:@"compact.view"]) { [self removeShortsAndFeaturesAdsAtIndexPath:indexPath]; }
-            // if ([[[cell node] accessibilityIdentifier] isEqualToString:@"id.ui.video_metadata_carousel"]) { [self removeShortsAndFeaturesAdsAtIndexPath:indexPath]; }
+        _ASCollectionViewCell *asCell = (_ASCollectionViewCell *)cell;
+        if ([asCell respondsToSelector:@selector(node)]) {
+            NSString *identifier = [[asCell node] accessibilityIdentifier];
+            if ([identifier isEqualToString:@"statement_banner.view"] ||
+                [identifier isEqualToString:@"compact.view"]) {
+                [self removeShortsAndFeaturesAdsAtIndexPath:indexPath];
+            }
+            // C's Tweaks - Hide comments section
+            if (IS_ENABLED(kCsHideComments) &&
+                ([identifier containsString:@"comments_entry_point"] ||
+                 [identifier containsString:@"comment_thread"] ||
+                 [identifier containsString:@"comments-entry-point"])) {
+                cell.hidden = YES;
+                cell.frame = CGRectZero;
+            }
         }
     }
-    return %orig;
+    return cell;
 }
 %new
 - (void)removeShortsAndFeaturesAdsAtIndexPath:(NSIndexPath *)indexPath {
-    [self deleteItemsAtIndexPaths:[NSArray arrayWithObject:indexPath]];
+    [self deleteItemsAtIndexPaths:@[indexPath]];
 }
 %end
 
@@ -405,22 +489,55 @@ YTMainAppControlsOverlayView *controlsOverlayView;
 }
 %end
 
+// Ad-blocking hooks
+%hook YTAdsInnerTubeContextDecorator
+- (void)decorateContext:(id)context {}
+%end
+
+%hook YTAccountScopedAdsInnerTubeContextDecorator
+- (void)decorateContext:(id)context {}
+%end
+
 // A/B flags
-%hook YTColdConfig 
+%hook YTColdConfig
+// C's Tweaks - Auto-skip "Are you still watching?"
+- (BOOL)isIdlePlaybackDialogEnabled {
+    if (IS_ENABLED(kCsAutoSkipStillWatching)) return NO;
+    return %orig;
+}
+// C's Tweaks - Disable long-press playback speed
+- (BOOL)speedMasterArm2Enabled {
+    if (IS_ENABLED(kCsDisableLongPressSpeed)) return NO;
+    return %orig;
+}
+- (BOOL)speedMasterArm2SpeedUpWithLongPress {
+    if (IS_ENABLED(kCsDisableLongPressSpeed)) return NO;
+    return %orig;
+}
+// C's Tweaks - Disable ambient mode (color glow behind video in dark mode)
+- (BOOL)enableCinematicContainerOnClient {
+    if (IS_ENABLED(kCsDisableAmbientMode)) return NO;
+    return %orig;
+}
+- (BOOL)iosCinematicContainerClientImprovement {
+    if (IS_ENABLED(kCsDisableAmbientMode)) return NO;
+    return %orig;
+}
 // YouRememberCaption: https://poomsmart.github.io/repo/depictions/youremembercaption.html
 - (BOOL)respectDeviceCaptionSetting { return NO; }
 // Swipe right to dismiss the right panel in fullscreen mode
 - (BOOL)isLandscapeEngagementPanelSwipeRightToDismissEnabled { return YES; }
 // Don't use new YT settings layout (Cairo Settings)
 - (BOOL)mainAppCoreClientEnableCairoSettings { return NO; }
+// Use system theme setting
+- (BOOL)shouldUseAppThemeSetting { return YES; }
+// Enable swipe to remove in playlist
+- (BOOL)enableSwipeToRemoveInPlaylistWatchEp { return YES; }
 %end
 
 # pragma mark - Constructor
 
 %ctor {
-    // Load uYou first so its functions are available for hooks.
-    // dlopen([[NSString stringWithFormat:@"%@/Frameworks/uYou.dylib", [[NSBundle mainBundle] bundlePath]] UTF8String], RTLD_LAZY);
-
     %init;
     if (IS_ENABLED(kDisableHints)) {
         %init(gDisableHints);

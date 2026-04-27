@@ -17,8 +17,6 @@
 #import <YouTubeHeader/ASCollectionView.h>
 #import <YouTubeHeader/ELMNodeController.h>
 
-// #import <YouTubeHeader/YTISectionListRenderer.h> // Hide search ads by @PoomSmart - https://github.com/PoomSmart/YouTube-X
-
 // Replace YouTube's download with uYou's
 #import <YouTubeHeader/ELMPBShowActionSheetCommand.h>
 #import <YouTubeHeader/ELMPBElement.h>
@@ -75,10 +73,6 @@ static NSString *const kFlex = @"flex_enabled";
 @interface YTSegmentableInlinePlayerBarView
 @property (nonatomic, assign, readwrite) BOOL enableSnapToChapter;
 @end
-
-// Hide autoplay switch / CC button
-// @interface YTMainAppControlsOverlayView : UIView
-// @end
 
 // Skips content warning before playing *some videos - @PoomSmart
 @interface YTPlayabilityResolutionUserActionUIController : NSObject

@@ -12,14 +12,14 @@ if [ -z "$PATHTOYT" ]; then
     COUNT=$(echo "$IPAS" | wc -l)
     
     if [ "$COUNT" -ge 2 ]; then
-        echo "❌ Error: Multiple IPA/app files found in the project's root directory directory. Make sure there is only one ipa."
+        echo "❌ Error: Multiple IPA/app files found in the project's root directory. Make sure there is only one ipa."
         exit 1
         
     elif [ -n "$IPAS" ]; then
         PATHTOYT=$(echo "$IPAS" | head -n 1)
         
     else
-        echo "❌ Error: No IPA/app file found in the project's root directory directory."
+        echo "❌ Error: No IPA/app file found in the project's root directory."
         exit 1
     fi
 fi

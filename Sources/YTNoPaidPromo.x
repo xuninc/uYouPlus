@@ -5,8 +5,7 @@
 // YTNoPaidPromo: https://github.com/PoomSmart/YTNoPaidPromo
 %hook YTMainAppVideoPlayerOverlayViewController
 - (void)setPaidContentWithPlayerData:(id)data {
-    if (IS_ENABLED(kHidePaidPromotionCard)) {}
-    else { return %orig; }
+    if (!IS_ENABLED(kHidePaidPromotionCard)) %orig;
 }
 - (void)playerOverlayProvider:(YTPlayerOverlayProvider *)provider didInsertPlayerOverlay:(YTPlayerOverlay *)overlay {
     if ([[overlay overlayIdentifier] isEqualToString:@"player_overlay_paid_content"] && IS_ENABLED(kHidePaidPromotionCard)) return;
@@ -16,7 +15,6 @@
 
 %hook YTInlineMutedPlaybackPlayerOverlayViewController
 - (void)setPaidContentWithPlayerData:(id)data {
-    if (IS_ENABLED(kHidePaidPromotionCard)) {}
-    else { return %orig; }
+    if (!IS_ENABLED(kHidePaidPromotionCard)) %orig;
 }
 %end

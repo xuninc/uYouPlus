@@ -1,4 +1,5 @@
 #import "uYouPlusSettings.h"
+#import "CsTweaks.h"
 
 #define VERSION_STRING [[NSString stringWithFormat:@"%@", @(OS_STRINGIFY(TWEAK_VERSION))] stringByReplacingOccurrencesOfString:@"\"" withString:@""]
 #define SHOW_RELAUNCH_YT_SNACKBAR [[%c(GOOHUDManagerInternal) sharedInstance] showMessageMainThread:[%c(YTHUDMessage) messageWithText:LOC(@"RESTART_YOUTUBE")]]
@@ -79,7 +80,20 @@ NSArray *copyKeys = @[
     @"startupPage",
     /* TWEAK     YTUHD Keys */
     @"EnableVP9",
-    @"AllVP9"
+    @"AllVP9",
+    /* TWEAK  C's Tweaks Keys */
+    kCsAutoSkipStillWatching,
+    kCsHideComments,
+    kCsHideShareButton,
+    kCsHideThanksButton,
+    kCsDisableLongPressSpeed,
+    kCsShowTimeRemaining,
+    kCsEnhancedDownloads,
+    kCsDisableAmbientMode,
+    kCsHideNotificationButton,
+    kCsCleanShareLinks,
+    kCsForceOriginalAudio,
+    kCsSwipeBrightnessVolume
 ];
 
 static const NSInteger uYouPlusSection = 500;
@@ -117,10 +131,9 @@ extern NSBundle *uYouPlusBundle();
     NSBundle *tweakBundle = uYouPlusBundle();
     Class YTSettingsSectionItemClass = %c(YTSettingsSectionItem);
     YTSettingsViewController *settingsViewController = [self valueForKey:@"_settingsViewControllerDelegate"];
+    if (!settingsViewController) return;
 
     # pragma mark - About
-    // SECTION_HEADER(LOC(@"ABOUT"));
-
     YTSettingsSectionItem *version = [%c(YTSettingsSectionItem)
         itemWithTitle:LOC(@"VERSION")
         titleDescription:nil
@@ -185,7 +198,12 @@ extern NSBundle *uYouPlusBundle();
                             if (components.count == 2) {
                                 NSString *key = components[0];
                                 NSString *value = components[1];
-                                [[NSUserDefaults standardUserDefaults] setObject:value forKey:key];
+                                // Properly handle boolean values
+                                if ([value isEqualToString:@"1"] || [value isEqualToString:@"0"]) {
+                                    [[NSUserDefaults standardUserDefaults] setBool:[value boolValue] forKey:key];
+                                } else {
+                                    [[NSUserDefaults standardUserDefaults] setObject:value forKey:key];
+                                }
                             }
                         }
                         [settingsViewController reloadData];
@@ -330,6 +348,22 @@ extern NSBundle *uYouPlusBundle();
     SWITCH2(LOC(@"YT_RE_EXPLORE"), LOC(@"YT_RE_EXPLORE_DESC"), kReExplore);
     SWITCH(LOC(@"GOOGLE_SIGNIN_FIX"), LOC(@"GOOGLE_SIGNIN_FIX_DESC"), kGoogleSigninFix);
     SWITCH(LOC(@"ENABLE_FLEX"), LOC(@"ENABLE_FLEX_DESC"), kFlex);
+
+    # pragma mark - C's Tweaks
+    SECTION_HEADER(LOC(@"CS_TWEAKS"));
+
+    SWITCH(LOC(@"CS_AUTO_SKIP_STILL_WATCHING"), LOC(@"CS_AUTO_SKIP_STILL_WATCHING_DESC"), kCsAutoSkipStillWatching);
+    SWITCH(LOC(@"CS_HIDE_COMMENTS"), LOC(@"CS_HIDE_COMMENTS_DESC"), kCsHideComments);
+    SWITCH(LOC(@"CS_HIDE_SHARE_BUTTON"), LOC(@"CS_HIDE_SHARE_BUTTON_DESC"), kCsHideShareButton);
+    SWITCH(LOC(@"CS_HIDE_THANKS_BUTTON"), LOC(@"CS_HIDE_THANKS_BUTTON_DESC"), kCsHideThanksButton);
+    SWITCH(LOC(@"CS_DISABLE_LONG_PRESS_SPEED"), LOC(@"CS_DISABLE_LONG_PRESS_SPEED_DESC"), kCsDisableLongPressSpeed);
+    SWITCH(LOC(@"CS_SHOW_TIME_REMAINING"), LOC(@"CS_SHOW_TIME_REMAINING_DESC"), kCsShowTimeRemaining);
+    SWITCH(LOC(@"CS_ENHANCED_DOWNLOADS"), LOC(@"CS_ENHANCED_DOWNLOADS_DESC"), kCsEnhancedDownloads);
+    SWITCH(LOC(@"CS_DISABLE_AMBIENT_MODE"), LOC(@"CS_DISABLE_AMBIENT_MODE_DESC"), kCsDisableAmbientMode);
+    SWITCH(LOC(@"CS_HIDE_NOTIFICATION_BUTTON"), LOC(@"CS_HIDE_NOTIFICATION_BUTTON_DESC"), kCsHideNotificationButton);
+    SWITCH(LOC(@"CS_CLEAN_SHARE_LINKS"), LOC(@"CS_CLEAN_SHARE_LINKS_DESC"), kCsCleanShareLinks);
+    SWITCH(LOC(@"CS_FORCE_ORIGINAL_AUDIO"), LOC(@"CS_FORCE_ORIGINAL_AUDIO_DESC"), kCsForceOriginalAudio);
+    SWITCH2(LOC(@"CS_SWIPE_BRIGHTNESS_VOLUME"), LOC(@"CS_SWIPE_BRIGHTNESS_VOLUME_DESC"), kCsSwipeBrightnessVolume);
 
     if ([settingsViewController respondsToSelector:@selector(setSectionItems:forCategory:title:icon:titleDescription:headerHidden:)])
         [settingsViewController setSectionItems:sectionItems forCategory:uYouPlusSection title:@"uYouPlus" icon:nil titleDescription:LOC(@"TITLE DESCRIPTION") headerHidden:YES];
